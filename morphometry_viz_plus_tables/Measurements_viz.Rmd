@@ -1,0 +1,1027 @@
+---
+title: "Goniomonas_morphometry"
+author: "ZavaD"
+date: "11/22/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r, echo=FALSE , message=FALSE}
+##upload packages
+library(stringr)
+library(openxlsx)
+library(data.table)
+library(magrittr)
+#library(GGally)
+library(propr)
+library(data.table)
+library(ggplot2)
+library(reshape2)
+library(tidyverse)
+library(dplyr)
+library(plyr)
+library(microshades)
+library(scales)
+library(ggbreak) 
+library(patchwork)
+library(ggpubr)
+library(gplots)
+
+library(devtools)
+
+library(ggbiplot)
+library(cowplot)
+setwd("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/")
+```
+
+```{r}
+GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin,
+  draw_group = function(self, data, ..., draw_quantiles = NULL) {
+    # Original function by Jan Gleixner (@jan-glx)
+    # Adjustments by Wouter van der Bijl (@Axeman)
+    data <- transform(data, xminv = x - violinwidth * (x - xmin), xmaxv = x + violinwidth * (xmax - x))
+    grp <- data[1, "group"]
+    newdata <- plyr::arrange(transform(data, x = if (grp %% 2 == 1) xminv else xmaxv), if (grp %% 2 == 1) y else -y)
+    newdata <- rbind(newdata[1, ], newdata, newdata[nrow(newdata), ], newdata[1, ])
+    newdata[c(1, nrow(newdata) - 1, nrow(newdata)), "x"] <- round(newdata[1, "x"])
+    if (length(draw_quantiles) > 0 & !scales::zero_range(range(data$y))) {
+      stopifnot(all(draw_quantiles >= 0), all(draw_quantiles <= 1))
+      quantiles <- create_quantile_segment_frame(data, draw_quantiles, split = TRUE, grp = grp)
+      aesthetics <- data[rep(1, nrow(quantiles)), setdiff(names(data), c("x", "y")), drop = FALSE]
+      aesthetics$alpha <- rep(1, nrow(quantiles))
+      both <- cbind(quantiles, aesthetics)
+      quantile_grob <- GeomPath$draw_panel(both, ...)
+      ggplot2:::ggname("geom_split_violin", grid::grobTree(GeomPolygon$draw_panel(newdata, ...), quantile_grob))
+    }
+    else {
+      ggplot2:::ggname("geom_split_violin", GeomPolygon$draw_panel(newdata, ...))
+    }
+  }
+)
+
+create_quantile_segment_frame <- function(data, draw_quantiles, split = FALSE, grp = NULL) {
+  dens <- cumsum(data$density) / sum(data$density)
+  ecdf <- stats::approxfun(dens, data$y)
+  ys <- ecdf(draw_quantiles)
+  violin.xminvs <- (stats::approxfun(data$y, data$xminv))(ys)
+  violin.xmaxvs <- (stats::approxfun(data$y, data$xmaxv))(ys)
+  violin.xs <- (stats::approxfun(data$y, data$x))(ys)
+  if (grp %% 2 == 0) {
+    data.frame(
+      x = ggplot2:::interleave(violin.xs, violin.xmaxvs),
+      y = rep(ys, each = 2), group = rep(ys, each = 2)
+    )
+  } else {
+    data.frame(
+      x = ggplot2:::interleave(violin.xminvs, violin.xs),
+      y = rep(ys, each = 2), group = rep(ys, each = 2)
+    )
+  }
+}
+
+geom_split_violin <- function(mapping = NULL, data = NULL, stat = "ydensity", position = "identity", ..., 
+                              draw_quantiles = NULL, trim = TRUE, scale = "area", na.rm = FALSE, 
+                              show.legend = NA, inherit.aes = TRUE) {
+  layer(data = data, mapping = mapping, stat = stat, geom = GeomSplitViolin, position = position, 
+        show.legend = show.legend, inherit.aes = inherit.aes, 
+        params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
+}
+```
+
+
+
+
+# All species
+
+
+```{r}
+B0075 <- fread("BEAP0075_measurements.csv")
+#B0075 <- B0075[c(1:27, 29:nrow(B0075)),]
+B0075$species <- "BEAP0340"
+
+B0079 <- fread("BEAP0079_measurements.csv")
+B0079$species <- "BEAP0338"
+
+B0128 <- fread("BEAP0128_measurements.csv")
+B0128$species <- "BEAP0342"
+
+B0220 <- fread("BEAP0220_measurements.csv")
+B0220$species <- "BEAP0335"
+
+Ball <- rbind(B0075, B0079, B0128, B0220)
+
+Ball <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+#Ball <- Ball[which(Ball$Adult_Juvenile_Medium == "A"),]
+
+summary_all_ages <- data.frame("species" = c("BEAP0340", "BEAP0338", "BEAP0342", "BEAP0335"))
+
+Ball <- Ball[which(Ball$species != "BEAP0342"),]
+
+```
+
+
+##  anterior flagellum
+```{r}
+Ball[which(is.na(Ball[,5] == TRUE)),8] <- 0
+Ball[which(is.na(Ball[,6] == TRUE)),9] <- 0
+Ball[which(is.na(Ball[,7] == TRUE)),10] <- 0
+
+Ball$A_fl_1 <- as.numeric(Ball$A_fl_1)
+Ball$A_fl_2 <- as.numeric(Ball$A_fl_2)
+Ball$A_fl_3 <- as.numeric(Ball$A_fl_3)
+
+sum_len <- apply(Ball[,c(8,9,10)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(8,9,10)]>0)))
+}
+
+Ball$A_fl_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+ summary_all_ages$Anterior_flagelum_length <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Anterior flagelum length, um", 
+         e, 
+         summary(Ball$A_fl_mean[which(Ball$species == e)]), sd(Ball$A_fl_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Anterior_flagelum_length[which(summary_all_ages$species == e)] <- paste0( summary(Ball$A_fl_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$A_fl_mean[which(Ball$species == e)], na.rm = TRUE) ,
+                                                                                             
+                                                                                             ", min=", summary(Ball$A_fl_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$A_fl_mean[which(Ball$species == e)])[6],
+                                                                                              ", n=", length( na.exclude(Ball$A_fl_mean[which(Ball$species == e)])) )
+  
+  
+}
+
+ggplot(Ball, aes(species, A_fl_mean))+geom_violin(width=1, alpha = 0.2)+geom_jitter(aes(shape = Adult_Juvenile_Medium), size = 3, alpha = 0.4, position=position_jitter(height=0,width=0.2))+theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+  ylab("Anterior flagellum length, um")#+geom_boxplot()
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+A_fl <- ggplot(Ball_adult, aes(species, A_fl_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Anterior flagellum")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))#+ylim(0,11)#+geom_boxplot()
+A_fl
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/A_fl.tiff", A_fl, height = 15, width = 10, units="cm")
+
+#Ball_all <- Ball
+#Ball_all$Adult_Juvenile_Medium[which(Ball_all$Adult_Juvenile_Medium == "M")] <- "A"
+#A_fl_half <- ggplot(Ball[which(Ball$Adult_Juvenile_Medium %in% c("A", "J")), ], aes(species, A_fl_mean, fill = Adult_Juvenile_Medium))+geom_split_violin(width=2, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75))+
+#  geom_jitter(size = 1.2,position=position_jitter(height=0,width=0.2))+
+#  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+#  stat_summary(fun.y= function(x) mean(x), geom="point", size=2, color="red")+
+#  ggtitle("Anterior flagelum")+theme(axis.title.y = element_blank(), axis.title.x = element_blank() )#+ylim(0,11)#+geom_boxplot()
+#A_fl_half
+
+```
+
+
+
+##  posterior flagellum
+```{r}
+Ball[which(is.na(Ball[,8] == TRUE)),5] <- 0
+Ball[which(is.na(Ball[,9] == TRUE)),6] <- 0
+Ball[which(is.na(Ball[,10] == TRUE)),7] <- 0
+
+Ball$P_fl_1 <- as.numeric(Ball$P_fl_1)
+Ball$P_fl_2 <- as.numeric(Ball$P_fl_2)
+Ball$P_fl_3 <- as.numeric(Ball$P_fl_3)
+
+sum_len <- apply(Ball[,c(5,6,7)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(5,6,7)]>0)))
+}
+
+Ball$P_fl_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+ summary_all_ages$Posterior_flagelum_length <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Posterior flagelum length, um", 
+         e, 
+         summary(Ball$P_fl_mean[which(Ball$species == e)]), sd(Ball$P_fl_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Posterior_flagelum_length[which(summary_all_ages$species == e)] <- paste0( summary(Ball$P_fl_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$P_fl_mean[which(Ball$species == e)], na.rm = TRUE) ,
+                                                                                              
+                                                                                             ", min=", summary(Ball$P_fl_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$P_fl_mean[which(Ball$species == e)])[6],
+                                                                                            ", n=", length( na.exclude(Ball$P_fl_mean[which(Ball$species == e)])))
+  
+}
+
+ggplot(Ball, aes(species, P_fl_mean))+geom_violin(width=1, alpha = 0.2)+geom_jitter(aes(shape = Adult_Juvenile_Medium), size = 3, alpha = 0.4, position=position_jitter(height=0,width=0.2))+theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+  ylab("Posterior flagelum length, um")#+geom_boxplot()
+
+
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+P_fl <- ggplot(Ball_adult, aes(species, P_fl_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Posterior flagellum")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))#+ylim(0,11)#+geom_boxplot()
+P_fl
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/P_fl.tiff", A_fl, height = 15, width = 10, units="cm")
+
+
+#ggsave("/home/dzavadska/Data/Goniomonas/X.png", X, height = 15, width = 10, units="cm")
+
+```
+
+
+
+##  Length
+```{r}
+Ball[which(is.na(Ball[,11] == TRUE)),11] <- 0
+Ball[which(is.na(Ball[,12] == TRUE)),12] <- 0
+Ball[which(is.na(Ball[,13] == TRUE)),13] <- 0
+
+Ball$Length_1 <- as.numeric(Ball$Length_1)
+Ball$Length_2 <- as.numeric(Ball$Length_2)
+Ball$Length_3 <- as.numeric(Ball$Length_3)
+
+sum_len <- apply(Ball[,c(11,12,13)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(11,12,13)]>0)))
+}
+
+Ball$Length_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+summary_all_ages$Cell_length <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Cell length, um", 
+         e, 
+         summary(Ball$Length_mean[which(Ball$species == e)]), sd(Ball$Length_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Cell_length[which(summary_all_ages$species == e)] <- paste0( summary(Ball$Length_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$Length_mean[which(Ball$species == e)], na.rm = TRUE) ,
+                                                                                              
+                                                                                             ", min=", summary(Ball$Length_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$Length_mean[which(Ball$species == e)])[6],
+                                                                                ", n=", length( na.exclude(Ball$Length_mean[which(Ball$species == e)])) )
+ 
+  
+}
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+Cell_length <- ggplot(Ball_adult, aes(species, Length_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Cell length")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))+scale_y_continuous(breaks = c(4.0, 5.0, 6.0))#+ylim(0,11)#+geom_boxplot()
+Cell_length
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/Cell_length.tiff", A_fl, height = 15, width = 10, units="cm")
+
+```
+
+##  Width
+
+```{r}
+Ball[which(is.na(Ball[,14] == TRUE)),14] <- 0
+Ball[which(is.na(Ball[,15] == TRUE)),15] <- 0
+Ball[which(is.na(Ball[,16] == TRUE)),16] <- 0
+
+Ball$Width_1 <- as.numeric(Ball$Width_1)
+Ball$Width_2 <- as.numeric(Ball$Width_2)
+Ball$Width_3 <- as.numeric(Ball$Width_3)
+
+sum_len <- apply(Ball[,c(14,15,16)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(14,15,16)]>0)))
+}
+
+Ball$Width_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+summary_all_ages$Cell_width <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Cell width, um", 
+         e, 
+         summary(Ball$Width_mean[which(Ball$species == e)]), sd(Ball$Width_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Cell_width[which(summary_all_ages$species == e)] <- paste0( summary(Ball$Width_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$Width_mean[which(Ball$species == e)], na.rm = TRUE) ,
+                                                                                             
+                                                                                             ", min=", summary(Ball$Width_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$Width_mean[which(Ball$species == e)])[6],
+                                                                                ", n=", length( na.exclude(Ball$Width_mean[which(Ball$species == e)])) )
+ 
+
+}
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+Cell_width <- ggplot(Ball_adult, aes(species, Width_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Cell width")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))#+ylim(0,11)#+geom_boxplot()
+Cell_width
+?reorder
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/Cell_width.tiff", Cell_length, height = 15, width = 10, units="cm")
+```
+
+
+##  Ejectosome
+
+```{r}
+Ball[which(is.na(Ball[,18] == TRUE)),18] <- 0
+Ball[which(is.na(Ball[,19] == TRUE)),19] <- 0
+Ball[which(is.na(Ball[,20] == TRUE)),20] <- 0
+
+Ball$Ejectisome_row_1 <- as.numeric(Ball$Ejectisome_row_1)
+Ball$Ejectisome_row_2 <- as.numeric(Ball$Ejectisome_row_2)
+Ball$Ejectisome_row_3 <- as.numeric(Ball$Ejectisome_row_3)
+
+sum_len <- apply(Ball[,c(18,19,20)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(18,19,20)]>0)))
+}
+
+Ball$Ejectisome_row_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+ summary_all_ages$Ejectisome_row_length <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Ejectosome row length, um", 
+         e, 
+         summary(Ball$Ejectisome_row_mean[which(Ball$species == e)]), sd(Ball$Ejectisome_row_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Ejectisome_row_length[which(summary_all_ages$species == e)] <- paste0( summary(Ball$Ejectisome_row_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$Ejectisome_row_mean[which(Ball$species == e)] , na.rm = TRUE) ,
+                                                                                             
+                                                                                             ", min=", summary(Ball$Ejectisome_row_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$Ejectisome_row_mean[which(Ball$species == e)])[6],
+                                                                                           ", n=", length( na.exclude(Ball$Ejectisome_row_mean[which(Ball$species == e)])) )
+ 
+}
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+Ejectosome <- ggplot(Ball_adult, aes(species, Ejectisome_row_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Ejectosome row length")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))#+ylim(0,11)#+geom_boxplot()
+Ejectosome
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/Ejectosome.tiff", Cell_length, height = 15, width = 10, units="cm")
+```
+
+
+```{r}
+print(summary_all_ages)
+
+for (e in unique(summary_all_ages$species)) {
+ s <- summary_all_ages[which(summary_all_ages$species == e),]
+  
+print(paste0(e, " Mean cell length is ", s$Cell_length," and mean cell width ",s$Cell_width,". Anterior flagellum length", s$Anterior_flagelum_length," and posterior flagellum length is ",s$Posterior_flagelum_length,", band of ejectosomes is", s$Ejectisome_row_length, " in length. "))
+  
+}
+
+fwrite(summary_all_ages , "/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/summary_all_adults.csv")
+```
+
+
+```{r}
+library(magick)
+
+#img1 <- image_read("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/A_fl.tiff")
+#img2 <- image_read("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/P_fl.tiff")
+#plot_grid(img1, img2, img1, img2, ncol = 2)
+
+plot_grid(P_fl, A_fl, Cell_width, Cell_length, Ejectosome, ncol = 5)
+
+facet <- plot_grid(P_fl, A_fl, Cell_width, Cell_length, Ejectosome, ncol = 5)
+
+facet1 <- plot_grid(A_fl, Cell_width, Cell_length, Ejectosome, ncol = 2, nrow =2)
+
+facet2 <- plot_grid(P_fl,facet1, ncol = 2, rel_widths = c(1,2,2) )
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/facet.pdf", facet2 , height = 20, width = 40, units="cm")
+
+```
+
+##########Beap 0128
+
+
+
+```{r}
+B0075 <- fread("BEAP0075_measurements.csv")
+#B0075 <- B0075[c(1:27, 29:nrow(B0075)),]
+B0075$species <- "BEAP0340"
+
+B0079 <- fread("BEAP0079_measurements.csv")
+B0079$species <- "BEAP0338"
+
+B0128 <- fread("BEAP0128_measurements.csv")
+B0128$species <- "BEAP0342"
+
+B0220 <- fread("BEAP0220_measurements.csv")
+B0220$species <- "BEAP0335"
+
+Ball <- rbind(B0075, B0079, B0128, B0220)
+
+Ball <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+#Ball <- Ball[which(Ball$Adult_Juvenile_Medium == "A"),]
+
+summary_all_ages <- data.frame("species" = c("BEAP0340", "BEAP0338", "BEAP0342", "BEAP0335"))
+
+Ball <- Ball[which(Ball$species == "BEAP0342"),]
+
+```
+
+
+##  anterior flagellum
+```{r}
+Ball[which(is.na(Ball[,5] == TRUE)),8] <- 0
+Ball[which(is.na(Ball[,6] == TRUE)),9] <- 0
+Ball[which(is.na(Ball[,7] == TRUE)),10] <- 0
+
+Ball$A_fl_1 <- as.numeric(Ball$A_fl_1)
+Ball$A_fl_2 <- as.numeric(Ball$A_fl_2)
+Ball$A_fl_3 <- as.numeric(Ball$A_fl_3)
+
+sum_len <- apply(Ball[,c(8,9,10)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(8,9,10)]>0)))
+}
+
+Ball$A_fl_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+ summary_all_ages$Anterior_flagelum_length <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Anterior flagelum length, um", 
+         e, 
+         summary(Ball$A_fl_mean[which(Ball$species == e)]), sd(Ball$A_fl_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Anterior_flagelum_length[which(summary_all_ages$species == e)] <- paste0( summary(Ball$A_fl_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$A_fl_mean[which(Ball$species == e)], na.rm = TRUE) ,
+                                                                                             
+                                                                                             ", min=", summary(Ball$A_fl_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$A_fl_mean[which(Ball$species == e)])[6],
+                                                                                              ", n=", length( na.exclude(Ball$A_fl_mean[which(Ball$species == e)])) )
+  
+  
+}
+
+ggplot(Ball, aes(species, A_fl_mean))+geom_violin(width=1, alpha = 0.2)+geom_jitter(aes(shape = Adult_Juvenile_Medium), size = 3, alpha = 0.4, position=position_jitter(height=0,width=0.2))+theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+  ylab("Anterior flagellum length, um")#+geom_boxplot()
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+A_fl <- ggplot(Ball_adult, aes(species, A_fl_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Anterior flagellum")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))#+ylim(0,11)#+geom_boxplot()
+A_fl
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/A_fl.tiff", A_fl, height = 15, width = 10, units="cm")
+
+#Ball_all <- Ball
+#Ball_all$Adult_Juvenile_Medium[which(Ball_all$Adult_Juvenile_Medium == "M")] <- "A"
+#A_fl_half <- ggplot(Ball[which(Ball$Adult_Juvenile_Medium %in% c("A", "J")), ], aes(species, A_fl_mean, fill = Adult_Juvenile_Medium))+geom_split_violin(width=2, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75))+
+#  geom_jitter(size = 1.2,position=position_jitter(height=0,width=0.2))+
+#  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+#  stat_summary(fun.y= function(x) mean(x), geom="point", size=2, color="red")+
+#  ggtitle("Anterior flagelum")+theme(axis.title.y = element_blank(), axis.title.x = element_blank() )#+ylim(0,11)#+geom_boxplot()
+#A_fl_half
+
+```
+
+
+
+##  posterior flagellum
+```{r}
+Ball[which(is.na(Ball[,8] == TRUE)),5] <- 0
+Ball[which(is.na(Ball[,9] == TRUE)),6] <- 0
+Ball[which(is.na(Ball[,10] == TRUE)),7] <- 0
+
+Ball$P_fl_1 <- as.numeric(Ball$P_fl_1)
+Ball$P_fl_2 <- as.numeric(Ball$P_fl_2)
+Ball$P_fl_3 <- as.numeric(Ball$P_fl_3)
+
+sum_len <- apply(Ball[,c(5,6,7)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(5,6,7)]>0)))
+}
+
+Ball$P_fl_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+ summary_all_ages$Posterior_flagelum_length <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Posterior flagelum length, um", 
+         e, 
+         summary(Ball$P_fl_mean[which(Ball$species == e)]), sd(Ball$P_fl_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Posterior_flagelum_length[which(summary_all_ages$species == e)] <- paste0( summary(Ball$P_fl_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$P_fl_mean[which(Ball$species == e)], na.rm = TRUE) ,
+                                                                                              
+                                                                                             ", min=", summary(Ball$P_fl_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$P_fl_mean[which(Ball$species == e)])[6],
+                                                                                            ", n=", length( na.exclude(Ball$P_fl_mean[which(Ball$species == e)])))
+  
+}
+
+ggplot(Ball, aes(species, P_fl_mean))+geom_violin(width=1, alpha = 0.2)+geom_jitter(aes(shape = Adult_Juvenile_Medium), size = 3, alpha = 0.4, position=position_jitter(height=0,width=0.2))+theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+  ylab("Posterior flagelum length, um")#+geom_boxplot()
+
+
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+P_fl <- ggplot(Ball_adult, aes(species, P_fl_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Posterior flagellum")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))#+ylim(0,11)#+geom_boxplot()
+P_fl
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/P_fl.tiff", A_fl, height = 15, width = 10, units="cm")
+
+
+#ggsave("/home/dzavadska/Data/Goniomonas/X.png", X, height = 15, width = 10, units="cm")
+
+```
+
+
+
+##  Length
+```{r}
+Ball[which(is.na(Ball[,11] == TRUE)),11] <- 0
+Ball[which(is.na(Ball[,12] == TRUE)),12] <- 0
+Ball[which(is.na(Ball[,13] == TRUE)),13] <- 0
+
+Ball$Length_1 <- as.numeric(Ball$Length_1)
+Ball$Length_2 <- as.numeric(Ball$Length_2)
+Ball$Length_3 <- as.numeric(Ball$Length_3)
+
+sum_len <- apply(Ball[,c(11,12,13)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(11,12,13)]>0)))
+}
+
+Ball$Length_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+summary_all_ages$Cell_length <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Cell length, um", 
+         e, 
+         summary(Ball$Length_mean[which(Ball$species == e)]), sd(Ball$Length_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Cell_length[which(summary_all_ages$species == e)] <- paste0( summary(Ball$Length_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$Length_mean[which(Ball$species == e)], na.rm = TRUE) ,
+                                                                                              
+                                                                                             ", min=", summary(Ball$Length_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$Length_mean[which(Ball$species == e)])[6],
+                                                                                ", n=", length( na.exclude(Ball$Length_mean[which(Ball$species == e)])) )
+ 
+  
+}
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+Cell_length <- ggplot(Ball_adult, aes(species, Length_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Cell length")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))+scale_y_continuous(breaks = c(4.0, 5.0, 6.0))#+ylim(0,11)#+geom_boxplot()
+Cell_length
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/Cell_length.tiff", A_fl, height = 15, width = 10, units="cm")
+
+```
+
+##  Width
+
+```{r}
+Ball[which(is.na(Ball[,14] == TRUE)),14] <- 0
+Ball[which(is.na(Ball[,15] == TRUE)),15] <- 0
+Ball[which(is.na(Ball[,16] == TRUE)),16] <- 0
+
+Ball$Width_1 <- as.numeric(Ball$Width_1)
+Ball$Width_2 <- as.numeric(Ball$Width_2)
+Ball$Width_3 <- as.numeric(Ball$Width_3)
+
+sum_len <- apply(Ball[,c(14,15,16)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(14,15,16)]>0)))
+}
+
+Ball$Width_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+summary_all_ages$Cell_width <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Cell width, um", 
+         e, 
+         summary(Ball$Width_mean[which(Ball$species == e)]), sd(Ball$Width_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Cell_width[which(summary_all_ages$species == e)] <- paste0( summary(Ball$Width_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$Width_mean[which(Ball$species == e)], na.rm = TRUE) ,
+                                                                                             
+                                                                                             ", min=", summary(Ball$Width_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$Width_mean[which(Ball$species == e)])[6],
+                                                                                ", n=", length( na.exclude(Ball$Width_mean[which(Ball$species == e)])) )
+ 
+
+}
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+Cell_width <- ggplot(Ball_adult, aes(species, Width_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Cell width")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))#+ylim(0,11)#+geom_boxplot()
+Cell_width
+?reorder
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/Cell_width.tiff", Cell_length, height = 15, width = 10, units="cm")
+```
+
+
+##  Ejectosome
+
+```{r}
+Ball[which(is.na(Ball[,18] == TRUE)),18] <- 0
+Ball[which(is.na(Ball[,19] == TRUE)),19] <- 0
+Ball[which(is.na(Ball[,20] == TRUE)),20] <- 0
+
+Ball$Ejectisome_row_1 <- as.numeric(Ball$Ejectisome_row_1)
+Ball$Ejectisome_row_2 <- as.numeric(Ball$Ejectisome_row_2)
+Ball$Ejectisome_row_3 <- as.numeric(Ball$Ejectisome_row_3)
+
+sum_len <- apply(Ball[,c(18,19,20)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(Ball))) {
+  non_zero <- c(non_zero,length(which(Ball[i,c(18,19,20)]>0)))
+}
+
+Ball$Ejectisome_row_mean <- sum_len/non_zero
+```
+
+```{r}
+#ggplot(Ball, aes(A_fl_mean, species))+geom_violin()+geom_point(aes(colour = Quality ,shape = Adult_Juvenile_Medium))+theme_classic()#+theme(axis.text.x = element_blank())
+ summary_all_ages$Ejectisome_row_length <- NA
+
+for ( e in unique(Ball$species)) {
+ print(c("Ejectosome row length, um", 
+         e, 
+         summary(Ball$Ejectisome_row_mean[which(Ball$species == e)]), sd(Ball$Ejectisome_row_mean[which(Ball$species == e)] , na.rm = TRUE),
+         length(which(Ball$species == e))
+         ))
+  
+  summary_all_ages$Ejectisome_row_length[which(summary_all_ages$species == e)] <- paste0( summary(Ball$Ejectisome_row_mean[which(Ball$species == e)])[4], 
+                                                                                            ", sd=",  sd(Ball$Ejectisome_row_mean[which(Ball$species == e)] , na.rm = TRUE) ,
+                                                                                             
+                                                                                             ", min=", summary(Ball$Ejectisome_row_mean[which(Ball$species == e)])[1],
+                                                                                            ", max=", summary(Ball$Ejectisome_row_mean[which(Ball$species == e)])[6],
+                                                                                           ", n=", length( na.exclude(Ball$Ejectisome_row_mean[which(Ball$species == e)])) )
+ 
+}
+
+Ball_adult <- Ball[c(which(Ball$Adult_Juvenile_Medium == "A"), which(Ball$Adult_Juvenile_Medium == "M")),]
+
+Ball_adult <- Ball_adult %>%
+  mutate( species=factor(species,levels=c("BEAP0340",  "BEAP0342", "BEAP0335", "BEAP0338")) )
+
+Ejectosome <- ggplot(Ball_adult, aes(species, Ejectisome_row_mean))+geom_violin(width=1, alpha = 0.2, draw_quantiles = c(0.25, 0.5, 0.75), fill = "grey", alpha = 0.5)+geom_jitter(size = 1.2,alpha = 0.7, position=position_jitter(height=0,width=0.1))+
+  theme_classic()+scale_shape_manual(values = c(0, 1, 2))+
+ # stat_summary(fun.y= "mean", geom="point", size = 3, shape = 8)+
+  ggtitle("Ejectosome row length")+
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), axis.text.x = element_text(size = 10, colour = "black", angle = 45, hjust = 1), axis.text.y = element_text(size = 15, colour = "black"), plot.title = element_text(size = 15))#+ylim(0,11)#+geom_boxplot()
+Ejectosome
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/Ejectosome.tiff", Cell_length, height = 15, width = 10, units="cm")
+```
+
+
+```{r}
+print(summary_all_ages)
+
+for (e in unique(summary_all_ages$species)) {
+ s <- summary_all_ages[which(summary_all_ages$species == e),]
+  
+print(paste0(e, " Mean cell length is ", s$Cell_length," and mean cell width ",s$Cell_width,". Anterior flagellum length", s$Anterior_flagelum_length," and posterior flagellum length is ",s$Posterior_flagelum_length,", band of ejectosomes is", s$Ejectisome_row_length, " in length. "))
+  
+}
+
+fwrite(summary_all_ages , "/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/summary_all_adults_BEAP0342.csv")
+```
+
+
+```{r}
+library(magick)
+
+#img1 <- image_read("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/A_fl.tiff")
+#img2 <- image_read("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/P_fl.tiff")
+#plot_grid(img1, img2, img1, img2, ncol = 2)
+
+plot_grid(P_fl, A_fl, Cell_width, Cell_length, Ejectosome, ncol = 5)
+
+facet <- plot_grid(P_fl, A_fl, Cell_width, Cell_length, Ejectosome, ncol = 5)
+
+ggsave("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/morphometry_mesurements_FIN/facet_BEAP0342.svg", facet , height = 15, width = 40, units="cm")
+
+```
+
+
+
+
+#############################################################33
+
+##PCA attempt
+
+
+```{r}
+
+for (e in unique(Ball$species)) {
+
+pcadf <- na.omit(Ball[which(Ball$species == e),c(3,21:25)])
+
+
+pc <- prcomp(pcadf[,3:6],
+             center = TRUE,
+            scale. = TRUE)
+print(pc)
+
+g <- ggbiplot(pc,
+              obs.scale = 1,
+              var.scale = 1,
+             # 
+             groups = pcadf$Adult_Juvenile_Medium,
+              ellipse = TRUE,
+              circle = TRUE,
+              ellipse.prob = 0.68)
+g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = 'horizontal',
+               legend.position = 'top') + ggtitle(e)
+print(g)
+}
+```
+
+
+##PCA attempt for all the species
+
+
+```{r}
+
+pcadf <- na.omit(Ball[,c(3,21:25)])
+
+pcadf <- pcadf[which(pcadf$Adult_Juvenile_Medium =="A"), ]
+
+pc <- prcomp(pcadf[,3:6],
+             center = TRUE,
+            scale. = TRUE)
+print(pc)
+
+g <- ggbiplot(pc,
+              obs.scale = 1,
+              var.scale = 1,
+             # 
+             groups = pcadf$species,
+              ellipse = TRUE,
+              circle = TRUE,
+              ellipse.prob = 0.68)
+g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = 'horizontal',
+               legend.position = 'top') + ggtitle("All species")
+print(g)
+```
+
+
+
+
+
+
+
+
+
+
+
+# Case xmple
+
+## BEAP0075 anterior flagellum
+```{r}
+B0075[which(is.na(B0075[,5] == TRUE)),5] <- 0
+B0075[which(is.na(B0075[,6] == TRUE)),6] <- 0
+B0075[which(is.na(B0075[,7] == TRUE)),7] <- 0
+
+sum_len <- apply(B0075[,c(5,6,7)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(B0075))) {
+  non_zero <- c(non_zero,length(which(B0075[i,c(5,6,7)]>0)))
+}
+
+B0075$A_fl_mean <- sum_len/non_zero
+```
+
+```{r}
+B0075$Date <- as.factor(B0075$Date)
+ggplot(B0075, aes(A_fl_mean, Adult_Juvenile_Medium))+geom_violin()+geom_point(aes(size = Quality ,colour = Date))+theme_classic()#+theme(axis.text.x = element_blank())
+```
+
+
+## BEAP0075 posterior flagellum
+```{r}
+B0075[which(is.na(B0075[,8] == TRUE)),8] <- 0
+B0075[which(is.na(B0075[,9] == TRUE)),9] <- 0
+B0075[which(is.na(B0075[,10] == TRUE)),10] <- 0
+
+sum_len <- apply(B0075[,c(8,9,10)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(B0075))) {
+  non_zero <- c(non_zero,length(which(B0075[i,c(8,9,10)]>0)))
+}
+
+B0075$P_fl_mean <- sum_len/non_zero
+```
+
+```{r}
+B0075$Date <- as.factor(B0075$Date)
+ggplot(B0075, aes(P_fl_mean, Adult_Juvenile_Medium))+geom_violin()+geom_point(aes(size = Quality ,colour = Date))+theme_classic()#+theme(axis.text.x = element_blank())
+```
+
+
+
+
+## BEAP0075 Length
+```{r}
+B0075[which(is.na(B0075[,11] == TRUE)),11] <- 0
+B0075[which(is.na(B0075[,12] == TRUE)),12] <- 0
+B0075[which(is.na(B0075[,13] == TRUE)),13] <- 0
+
+sum_len <- apply(B0075[,c(11,12,13)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(B0075))) {
+  non_zero <- c(non_zero,length(which(B0075[i,c(11,12,13)]>0)))
+}
+
+B0075$Length_mean <- sum_len/non_zero
+```
+
+```{r}
+B0075$Date <- as.factor(B0075$Date)
+ggplot(B0075, aes(Length_mean, Adult_Juvenile_Medium))+geom_violin()+geom_point(aes(size = Quality ,colour = Date))+theme_classic()#+theme(axis.text.x = element_blank())
+```
+
+
+
+## BEAP0075 Width
+```{r}
+B0075[which(is.na(B0075[,14] == TRUE)),14] <- 0
+B0075[which(is.na(B0075[,15] == TRUE)),15] <- 0
+B0075[which(is.na(B0075[,16] == TRUE)),16] <- 0
+
+sum_len <- apply(B0075[,c(14,15,16)],1,sum)
+
+non_zero <- c()
+for ( i in c(1:nrow(B0075))) {
+  non_zero <- c(non_zero,length(which(B0075[i,c(14,15,16)]>0)))
+}
+
+B0075$Width_mean <- sum_len/non_zero
+```
+
+```{r}
+B0075$Date <- as.factor(B0075$Date)
+ggplot(B0075, aes(Width_mean, Adult_Juvenile_Medium))+geom_violin()+geom_point(aes(size = Quality ,colour = Date))+theme_classic()#+theme(axis.text.x = element_blank())
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
