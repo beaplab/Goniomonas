@@ -66,18 +66,28 @@ seqkit rmdup -D ./duplicates.fasta -s ./eukref_goniomonads_outgroup.fasta  > ./e
 "/usr/bin/mafft"  --auto --inputorder "eukref_goniomonads_outgroup_nodup.fasta" > "eukref_goniomonads_outgroup_mafft.fasta"
 fasttree -nt ./eukref_goniomonads_outgroup_mafft.fasta > ./eukref_goniomonads_outgroup_mafft_fasttree
 
+
+#manually remove BEAP sequences from the same strains (they are shorter versions of original sequences, and have letters like a b c appended to bEAP ID) ======> eukref_goniomonads_outgroup_mafft_2_0.fasta 
+
+
+
+#add sequences from phanphrasert et. al. - fetching and merging with previous file
+for i in $(cat phannph_ids.txt) ; do efetch -db nuccore -id "$i" -format fasta >> phannph_seqs.fasta ; done
+
+cat phannph_seqs.fasta eukref_goniomonads_outgroup_mafft_2_0.fasta >> eukref_goniomonads_outgroup_mafft_3_0.fasta 
+
 ############################################################
 ######## ALIGNMENT AND TREE-BUILDING ITSELF ################
 ######## tree with big outgroup - used in supplement #######
 ############################################################
 
 
-cp ./eukref_goniomonads_outgroup_nodup.fasta ./FIN.fasta
+cp ./eukref_goniomonads_outgroup_mafft_3_0.fasta ./FIN.fasta
 
 #manually added BEAP0271, BEAP0296, BEAP0351
-seqkit rmdup -D ./duplicates.fasta -s ./FIN.fasta  > ./FIN_nodup.fasta
+# seqkit rmdup -D ./duplicates.fasta -s ./FIN.fasta  > ./FIN_nodup.fasta
 #no duplicates recovered at this point, continue with FIN.fasta
-"/usr/bin/mafft"  --localpair  --maxiterate 1000 --inputorder "FIN.fasta" > "FIN_mafft.fasta" 
+"/usr/bin/mafft" --localpair --maxiterate 1000 --inputorder "FIN.fasta" > "FIN_mafft.fasta" 
 
 #trying a variety of trimming options
 /home/dzavadska/trimAl/source/trimal -in FIN_mafft.fasta -out FIN_mafft_gappyout_gt05.fasta -gt 0.5 -fasta
@@ -86,50 +96,50 @@ seqkit rmdup -D ./duplicates.fasta -s ./FIN.fasta  > ./FIN_nodup.fasta
 /home/dzavadska/trimAl/source/trimal -in FIN_mafft.fasta -out FIN_mafft_gappyout.fasta -gappyout -fasta
 
 #detecting redundant sequences which appear as a result of trimming
-seqkit rmdup -D ./duplicates_gt05.fasta -s ./FIN_mafft_gappyout_gt05.fasta #4 duplicates
+seqkit rmdup -D ./duplicates_gt05.fasta -s ./FIN_mafft_gappyout_gt05.fasta #6 duplicates
 seqkit rmdup -D ./duplicates_gt02.fasta -s ./FIN_mafft_gappyout_gt02.fasta #4 duplicates
-seqkit rmdup -D ./duplicates_gt01.fasta -s ./FIN_mafft_gappyout_gt01.fasta #3 duplicates
-seqkit rmdup -D ./duplicates_gappyout.fasta -s ./FIN_mafft_gappyout.fasta #13 duplicates
+seqkit rmdup -D ./duplicates_gt01.fasta -s ./FIN_mafft_gappyout_gt01.fasta #2 duplicates
+seqkit rmdup -D ./duplicates_gappyout.fasta -s ./FIN_mafft_gappyout.fasta #19 duplicates
+
+for i in ./duplicates* ; do echo "$i" ; wc -l "$i" ; done
 
 #detecting parsimony informative sites; col1: number of parsimony informative sites col2: total number of sites col3: percentage of parsimony informative sites
-phykit parsimony_informative_sites ./FIN_mafft_gappyout_gt05.fasta #723	1703	42.4545
-phykit parsimony_informative_sites ./FIN_mafft_gappyout_gt02.fasta #759	1781	42.6165
-phykit parsimony_informative_sites ./FIN_mafft_gappyout_gt01.fasta #880	1958	44.9438
-phykit parsimony_informative_sites ./FIN_mafft_gappyout.fasta #530	1320	40.1515
+phykit parsimony_informative_sites ./FIN_mafft_gappyout_gt05.fasta #725	1708	42.4473
+phykit parsimony_informative_sites ./FIN_mafft_gappyout_gt02.fasta #755	1778	42.4634
+phykit parsimony_informative_sites ./FIN_mafft_gappyout_gt01.fasta #903	1976	45.6984
+phykit parsimony_informative_sites ./FIN_mafft_gappyout.fasta #434	1102	39.3829
 
 #Based on manual inspection and parsimony informative sites metrics, we continue with alignment FIN_mafft_gappyout_gt02.fasta 
 seqkit rmdup -D ./duplicates_gt02.fasta -s ./FIN_mafft_gappyout_gt02.fasta > ./FIN_mafft_gt02_FOR_TREE.fasta
-#[INFO] 4 duplicated records removed : 2	EF526832.1/1-1390, EF526832_Cryptophyceae|CRY4-lineage|clone=NA1_3C10/1-1390
-#2	SL4-0466_Cryptophyceae|goniomonads|g-Goniomonas|Gtrun-group|clone=c-418_conseq_Otu466_6_soil_Skogaryd-peat/1-1424, FW3-0381_Cryptophyceae|goniomonads|g-Goniomonas|Gtrun-group|clone=c-1293_conseq_Otu0381_19_freshwater_permafrost/1-1423
-#2	FW3-0449_Cryptophyceae|goniomonads|g-Goniomonas|Gtrun-group|clone=c-1344_conseq_Otu0449_14_freshwater_permafrost/1-1423, FW5-0385_Cryptophyceae|goniomonads|g-Goniomonas|Gtrun-group|clone=c-305_conseq_Otu385_3_freshwater_Svartberget-fw/1-1422
-#2	FW3-0548_Cryptophyceae|goniomonads|g-Goniomonas|Gtrun-group|clone=c-1279_conseq_Otu0548_9_freshwater_permafrost/1-1420, FW5-0034_Cryptophyceae|goniomonads|g-Goniomonas|Gtrun-group|clone=c-323_conseq_Otu034_913_freshwater_Svartberget-fw/1-1420
-
-
+# FW3-0381_Cryptophyceae|goniomonads|g-Goniomonas|Gtrun-group|clone=c-1293_conseq_Otu0381_19_freshwater_permafrost/1-1423
+# FW5-0034_Cryptophyceae|goniomonads|g-Goniomonas|Gtrun-group|clone=c-323_conseq_Otu034_913_freshwater_Svartberget-fw/1-1420
 
 /home/dzavadska/Data/soft/modeltest/bin/modeltest-ng --input FIN_mafft_gt02_FOR_TREE.fasta --datatype nt --template raxml
 
 #                         Model         Score        Weight
 #----------------------------------------------------------
-#       BIC            GTR+I+G4    67838.6414        1.0000
-#       AIC            GTR+I+G4    65726.9432        1.0000
-#      AICc            GTR+I+G4    65939.9432        1.0000
+#       BIC            GTR+I+G4    69239.8222        1.0000
+#       AIC            GTR+I+G4    66854.6108        1.0000
+#      AICc            GTR+I+G4    67136.6108        1.0000
 
 
-raxmlHPC -m GTRGAMMAIX -p 12345 -T 8 -# 20 -s FIN_mafft_gt02_FOR_TREE.fasta -n FIN_23Oct2024
-raxmlHPC -m GTRGAMMAIX -p 12345 -T 8 -b 12345 -# 1000 -s FIN_mafft_gt02_FOR_TREE.fasta -n FIN_23Oct2024_BS
-raxmlHPC -m GTRGAMMAIX -p 12345 -f b -t RAxML_bestTree.FIN_23Oct2024 -z RAxML_bootstrap.FIN_23Oct2024_BS -n FIN_23Oct2024_BS_BIPART
+
+raxmlHPC -m GTRGAMMAIX -p 12345 -T 8 -# 20 -s FIN_mafft_gt02_FOR_TREE.fasta -n FIN_18Oct2025
+raxmlHPC -m GTRGAMMAIX -p 12345 -T 8 -b 12345 -# 1000 -s FIN_mafft_gt02_FOR_TREE.fasta -n FIN_18Oct2025_BS
+raxmlHPC -m GTRGAMMAIX -p 12345 -f b -t RAxML_bestTree.FIN_18Oct2025 -z RAxML_bootstrap.FIN_18Oct2025_BS -n FIN_18Oct2025_BS_BIPART
 
 
 /home/dzavadska/Data/soft/modeltest/bin/modeltest-ng --input FIN_mafft_gappyout_gt02.fasta --datatype nt -o mb --template mrbayes
 
 #                         Model         Score        Weight
 #----------------------------------------------------------
-#       BIC            GTR+I+G4    67861.1129        0.9917
-#       AIC            GTR+I+G4    65705.5353        1.0000
-#      AICc            GTR+I+G4    65928.5353        1.0000
+#       BIC            GTR+I+G4    69170.9355        0.9939
+#       AIC            GTR+I+G4    66741.8582        1.0000
+#      AICc            GTR+I+G4    67035.8582        1.0000
 
 
-#Preformatting for fkng MrBayes
+
+#Preformatting for MrBayes
 #cp FIN_MAFFT_GONIO.fasta ./FIN_MAFFT_mb_rename.fasta
 
 
@@ -142,8 +152,11 @@ raxmlHPC -m GTRGAMMAIX -p 12345 -f b -t RAxML_bestTree.FIN_23Oct2024 -z RAxML_bo
 #manually modify datatype to DNA
 sed -i 's@/@VVV@g' FIN_mafft_gappyout_gt02.nex
 sed -i 's@_.*.1-@@g' FIN_mafft_gappyout_gt02.nex
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #manually remove duplicates, opening the .nex alignment in Aliview
-
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 mb
 #mbprompt follows
@@ -154,7 +167,10 @@ mcmc ngen=2000000 samplefreq=10
 sump
 sumt
 
-#stopped at generation 3010000, with Average standard deviation of split frequencies: 0.011541
+#   2000000 -- (-33256.857) (-33059.576) (-33097.499) [-33058.986] * [-33031.983] (-33116.544) (-33105.407) (-33080.768) -- 0:00:00
+#   Average standard deviation of split frequencies: 0.014344
+
+
 
 #manually create csv file with two columns containing outputs from these two commands (dictionary of names)
 grep ">" FIN_mafft_gappyout_gt02.fasta
@@ -176,9 +192,10 @@ sed 's@VVV.*@@g' tree_renamed2_custom_mb.nwk > tree_renamed3_custom_mb.nwk
 
 # FIN_2.fasta is manually produced from FIN.fasta by removing all the outgroup sequences apart from the ones belonging to CRY-1.
 
+#check for duplicates: there should be none
+#seqkit rmdup -D ./duplicates.fasta -s ./FIN_2.fasta  > ./FIN_2nodup.fasta
 
-
-"/usr/bin/mafft"  --localpair  --maxiterate 1000 --inputorder "FIN_2.fasta" > "FIN2_mafft.fasta" 
+"/usr/bin/mafft" --localpair --maxiterate 1000 --inputorder "FIN_2.fasta" > "FIN2_mafft.fasta" 
 
 
 #trying a variety of trimming options
@@ -189,19 +206,19 @@ sed 's@VVV.*@@g' tree_renamed2_custom_mb.nwk > tree_renamed3_custom_mb.nwk
 
 
 #detecting redundant sequences which appear as a result of trimming
-seqkit rmdup -D ./duplicates_gt05.fasta -s ./FIN2_mafft_gappyout_gt05.fasta #3 duplicates
+seqkit rmdup -D ./duplicates_gt05.fasta -s ./FIN2_mafft_gappyout_gt05.fasta #5 duplicates
 seqkit rmdup -D ./duplicates_gt02.fasta -s ./FIN2_mafft_gappyout_gt02.fasta #2 duplicates
 seqkit rmdup -D ./duplicates_gt01.fasta -s ./FIN2_mafft_gappyout_gt01.fasta #1 duplicates
-seqkit rmdup -D ./duplicates_gappyout.fasta -s ./FIN2_mafft_gappyout.fasta #11 duplicates
+seqkit rmdup -D ./duplicates_gappyout.fasta -s ./FIN2_mafft_gappyout.fasta #16 duplicates
 
 
 for i in ./duplicates* ; do echo "$i" ; wc -l "$i" ; done
 
 #detecting parsimony informative sites; col1: number of parsimony informative sites col2: total number of sites col3: percentage of parsimony informative sites
-phykit parsimony_informative_sites ./FIN2_mafft_gappyout_gt05.fasta #500	1717	29.1206
-phykit parsimony_informative_sites ./FIN2_mafft_gappyout_gt02.fasta #629	1943	32.3726
-phykit parsimony_informative_sites ./FIN2_mafft_gappyout_gt01.fasta #710	2146	33.0848
-phykit parsimony_informative_sites ./FIN2_mafft_gappyout.fasta #309	1099	28.1165
+phykit parsimony_informative_sites ./FIN2_mafft_gappyout_gt05.fasta #502	1717	29.237
+phykit parsimony_informative_sites ./FIN2_mafft_gappyout_gt02.fasta #620	1913	32.4098
+phykit parsimony_informative_sites ./FIN2_mafft_gappyout_gt01.fasta #712	2133	33.3802
+phykit parsimony_informative_sites ./FIN2_mafft_gappyout.fasta #314	1101	28.5195
 
 #Based on manual inspection and parsimony informative sites metrics, we continue with alignment FIN2_mafft_gappyout_gt02.fasta 
 seqkit rmdup -D ./duplicates_gt02.fasta -s ./FIN2_mafft_gappyout_gt02.fasta > ./FIN2_mafft_gt02_FOR_TREE.fasta
@@ -210,15 +227,14 @@ seqkit rmdup -D ./duplicates_gt02.fasta -s ./FIN2_mafft_gappyout_gt02.fasta > ./
 
 #                         Model         Score        Weight
 #----------------------------------------------------------
-#       BIC            HKY+I+G4    31561.7558        0.6294
-#       AIC            GTR+I+G4    30442.8456        1.0000
-#      AICc            GTR+I+G4    30488.8456        0.9999
+#       BIC            HKY+I+G4    32222.6910        0.9030
+#       AIC            GTR+I+G4    30844.7765        0.9999
+#      AICc            GTR+I+G4    30919.7765        0.9994
 
 
-
-raxmlHPC -m GTRGAMMAIX -p 12345 -T 8 -# 20 -s FIN2_mafft_gt02_FOR_TREE.fasta -n FIN_9Dec2024
-raxmlHPC -m GTRGAMMAIX -p 12345 -T 8 -b 12345 -# 1000 -s FIN2_mafft_gt02_FOR_TREE.fasta -n FIN_9Dec2024_BS
-raxmlHPC -m GTRGAMMAIX -p 12345 -f b -t RAxML_bestTree.FIN_9Dec2024 -z RAxML_bootstrap.FIN_9Dec2024_BS -n FIN_9Dec2024_BS_BIPART
+raxmlHPC -m GTRGAMMAIX -p 12345 -T 8 -# 20 -s FIN2_mafft_gt02_FOR_TREE.fasta -n FIN2_18Oct2025
+raxmlHPC -m GTRGAMMAIX -p 12345 -T 8 -b 12345 -# 1000 -s FIN2_mafft_gt02_FOR_TREE.fasta -n FIN2_18Oct2025_BS
+raxmlHPC -m GTRGAMMAIX -p 12345 -f b -t RAxML_bestTree.FIN2_18Oct2025 -z RAxML_bootstrap.FIN2_18Oct2025_BS -n FIN2_18Oct2025_BS_BIPART
 
 
 #mb
@@ -227,13 +243,14 @@ raxmlHPC -m GTRGAMMAIX -p 12345 -f b -t RAxML_bestTree.FIN_9Dec2024 -z RAxML_boo
 
 #                         Model         Score        Weight
 #----------------------------------------------------------
-#       BIC            HKY+I+G4    31582.6340        0.6438
-#       AIC            GTR+I+G4    30441.5867        1.0000
-#      AICc            GTR+I+G4    30489.5867        0.9999
+#       BIC            GTR+I+G4    32411.0272        0.7945
+#       AIC            GTR+I+G4    30994.1380        1.0000
+#      AICc            GTR+I+G4    31072.1380        0.9999
 
 
 
-#Preformatting for fkng MrBayes
+
+#Preformatting for  MrBayes
 #cp FIN_MAFFT_GONIO.fasta ./FIN_MAFFT_mb_rename.fasta
 
 
@@ -241,7 +258,8 @@ raxmlHPC -m GTRGAMMAIX -p 12345 -f b -t RAxML_bestTree.FIN_9Dec2024 -z RAxML_boo
 # convert fasts to nexus by running trimal again
 /home/dzavadska/trimAl/source/trimal -in FIN2_mafft.fasta -out FIN2_mafft_gappyout_gt02.nex -gt 0.2 -nexus
 
-#cp ./FIN_mafft_gappyout.nex ./MrBayes_3/
+
+#cp ./FIN2_mafft_gappyout_gt02.nex ../mrbayes/
 
 #manually modify datatype to DNA
 sed -i 's@/@VVV@g' FIN2_mafft_gappyout_gt02.nex
@@ -260,11 +278,12 @@ mb
 #the number of gamma categories defaults to 4 in mrbayes
 execute FIN2_mafft_gappyout_gt02.nex
 lset nst=6 rates=invgamma
-mcmc ngen=1000000 samplefreq=10
+mcmc ngen=1500000 samplefreq=10
 sump
 sumt
-
-#Average standard deviation of split frequencies: 0.010011
+  
+# 1500000 -- (-15414.377) (-15407.570) (-15453.851) [-15381.736] * (-15418.645) (-15454.415) (-15405.726) [-15394.014] -- 0:00:00
+#   Average standard deviation of split frequencies: 0.007153
 
 #for HKY
 
@@ -277,17 +296,19 @@ mcmc ngen=1000000 samplefreq=10
 sump
 sumt
 
+#   1500000 -- (-15423.521) (-15469.211) (-15408.459) [-15386.869] * (-15429.307) (-15435.184) [-15409.435] (-15434.023) -- 0:00:00
+#   Average standard deviation of split frequencies: 0.008679
+
 
 
 #Run the tree renamer R script, and with the output from it:
 
 #renaming tree outputs
-sed 's@special_Separator.*@@g' gtr_tree2_0_renamed_custom_mb.nwk > gtr_tree2_0_renamed2_custom_mb.nex
-sed 's@VVV.*@@g' gtr_tree2_0_renamed2_custom_mb.nex > gtr_tree2_0_renamed3_custom_mb.nex
+sed -i 's@special_Separator.*@@g' tree2_0_renamed_custom_mb.nwk
+sed -i 's@VVV.*@@g' tree2_0_renamed_custom_mb.nwk
 
 sed 's@special_Separator.*@@g' hky_tree2_0_renamed_custom_mb.nwk > hky_tree2_0_renamed2_custom_mb.nex
 sed 's@VVV.*@@g' hky_tree2_0_renamed2_custom_mb.nex > hky_tree2_0_renamed3_custom_mb.nex
-
 
 
 
