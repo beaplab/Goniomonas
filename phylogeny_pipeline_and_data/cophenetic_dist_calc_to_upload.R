@@ -1,18 +1,20 @@
 library(ape)
 
+setwd("/home/dzavadska/Data/Goniomonas/Jeuk_micro/TREES_Jeukmicro/tree_viz_rename/")
+
 `%rin%` = function (pattern, list) {
   vapply(pattern, function (p) any(grepl(p, list)), logical(1L), USE.NAMES = FALSE)
 }
 
 
-tree<-read.tree("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/TREES/tree_viz_rename_pairwise_dist/tree_renamed_custom_raxml.nwk")
+tree<-read.tree("tree2_0_renamed_custom_raxml.nwk")
 PatristicDistMatrix<-cophenetic(tree)
-write.csv(PatristicDistMatrix, "/home/dzavadska/Data/Goniomonas/TO_UPLOAD/TREES/tree_viz_rename_pairwise_dist/RAXML_raw_distance_matrix.csv")
+write.csv(PatristicDistMatrix, "RAXML2_0_raw_distance_matrix.csv")
 
 
-tree<-read.nexus("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/TREES/tree_viz_rename_pairwise_dist/tree_renamed3_custom_raxml.nwk")
+tree<-read.nexus("tree2_0_renamed_custom_mb.nwk")
 PatristicDistMatrix<-cophenetic(tree)
-write.csv(PatristicDistMatrix, "/home/dzavadska/Data/Goniomonas/TO_UPLOAD/TREES/tree_viz_rename_pairwise_dist/mb_raw_distance_matrix.csv")
+write.csv(PatristicDistMatrix, "gtr_mb2_0_raw_distance_matrix.csv")
 
 
 
@@ -23,9 +25,9 @@ headers <- fread("name_dict_manual_edit.csv", header =T)
 headers$short <- str_replace_all(headers$short, ">", "") 
 
 
-mb_matrix <- read.csv("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/TREES/tree_viz_rename_pairwise_dist/mb_raw_distance_matrix.csv")
+mb_matrix <- read.csv("gtr_mb2_0_raw_distance_matrix.csv")
 
-genera <- c("Goniomonas", "Limnogoniomonas", "Aquagoniomonas", "Marigoniomonas", "Neptunogoniomonas", "Thalassogonimonas", "Cosmogoniomonas", "Poseidogonimonas","BEAPgoniomonas")
+genera <- c("Goniomonas", "Limnogoniomonas", "Aquagoniomonas", "Marigoniomonas", "Neptunogoniomonas", "Thalassogonimonas", "Cosmogoniomonas", "Poseidogoniomonas","Ebisugoniomonas", "Baltigoniomonas")
 
 for(i in genera){
   
@@ -40,16 +42,16 @@ for (id in ids) {
 
 df <- mb_matrix[rows, c(1, cols)]
 df$genus <- i
-write.csv(df, file = paste0("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/TREES/tree_viz_rename_pairwise_dist/distance_matrices_genera/mb_raw_distance_matrix_", i))
+write.csv(df, file = paste0("gtr_mb2_0_raw_distance_matrix_", i))
 
 }
 
 
 
 
-raxml_matrix <- read.csv("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/TREES/tree_viz_rename_pairwise_dist/RAXML_raw_distance_matrix.csv")
+raxml_matrix <- read.csv( "RAXML2_0_raw_distance_matrix.csv")
 
-genera <- c("Goniomonas", "Limnogoniomonas", "Aquagoniomonas", "Marigoniomonas", "Neptunogoniomonas", "Thalassogonimonas", "Cosmogoniomonas", "Poseidogonimonas","BEAPgoniomonas")
+genera <- c("Goniomonas", "Limnogoniomonas", "Aquagoniomonas", "Marigoniomonas", "Neptunogoniomonas", "Thalassogonimonas", "Cosmogoniomonas", "Poseidogoniomonas","Ebisugoniomonas")
 
 for(i in genera){
   
@@ -64,7 +66,7 @@ for(i in genera){
   
   df <- raxml_matrix[rows, c(1, cols)]
   df$genus <- i
-  write.csv(df, file = paste0("/home/dzavadska/Data/Goniomonas/TO_UPLOAD/TREES/tree_viz_rename_pairwise_dist/distance_matrices_genera/raxml_raw_distance_matrix_", i))
+  write.csv(df, file = paste0("raxml2_0_raw_distance_matrix_", i))
   
 }
 
@@ -82,7 +84,7 @@ full_headers <- paste(str_replace_all(headers$short, ">", ""), headers$CR_CR_gen
 short_headers <- str_replace_all(headers$short, ">", "") 
 short_headers <- str_replace_all(short_headers, "-", ".") 
 
-mb <- read.csv("/home/dzavadska/Data/Goniomonas/FINAL_TREE/viz_and_rename/mb_raw_distance_matrix.csv")
+mb <- read.csv("gtr_mb2_0_raw_distance_matrix.csv")
 mb$X <- as.character(mb$X)
 #str(tree)
 #full_headers[grep(short_headers[1], full_headers)]
@@ -99,7 +101,7 @@ for (i in short_headers) {
 }
 
 
-write.csv(mb, "cophenetic_distance_renamed_mb.csv")
+write.csv(mb, "gtr_cophenetic_distance_renamed_mb2_0.csv")
 
 
 
@@ -109,7 +111,7 @@ write.csv(mb, "cophenetic_distance_renamed_mb.csv")
 ############################################################################################
 
 
-raxml <- read.csv("/home/dzavadska/Data/Goniomonas/FINAL_TREE/viz_and_rename/RAXML_raw_distance_matrix.csv")
+raxml <- read.csv("RAXML2_0_raw_distance_matrix.csv")
 raxml$X <- as.character(mb$X)
 #str(tree)
 #full_headers[grep(short_headers[1], full_headers)]
@@ -126,4 +128,4 @@ for (i in short_headers) {
 }
 
 
-write.csv(raxml, "cophenetic_distance_renamed_raxml.csv")
+write.csv(raxml, "cophenetic_distance_renamed_raxml2_0.csv")
